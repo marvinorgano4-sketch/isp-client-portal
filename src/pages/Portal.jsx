@@ -46,6 +46,20 @@ export default function Portal({ user, onLogout }) {
       setLoading(false)
     }
     load()
+
+    // Realtime: listen for client status changes (disconnect/reconnect)
+    const channel = supabase.channel(`client-status-${user.clientId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'clients',
+        filter: `id=eq.${user.clientId}`,
+      }, (payload) => {
+        setClient(prev => prev ? { ...prev, ...payload.new } : payload.new)
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [user.clientId])
 
   const fmt = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
@@ -105,6 +119,20 @@ export default function Portal({ user, onLogout }) {
         {/* OVERVIEW TAB */}
         {tab === 'overview' && (
           <>
+            {/* Disconnected Alert */}
+            {client?.status === 'disconnected' && (
+              <div className="card p-4 border-red-500/50 bg-red-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Wifi size={20} className="text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-red-400 font-bold text-sm">Account Disconnected</p>
+                    <p className="text-slate-400 text-xs mt-0.5">Your internet service has been disconnected. Please settle your balance and contact support to reconnect.</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Announcements */}
             {announcements.length > 0 && (
               <div className="space-y-2">
