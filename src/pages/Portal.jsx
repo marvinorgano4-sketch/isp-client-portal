@@ -64,7 +64,7 @@ export default function Portal({ user, onLogout }) {
     </div>
   )
 
-  if (showChat) return <Chat user={user} onBack={() => setShowChat(false)} />
+  // Chat is now an overlay, no full-page redirect needed
 
   return (
     <div className="min-h-screen bg-slate-950 pb-20">
@@ -250,6 +250,9 @@ export default function Portal({ user, onLogout }) {
       >
         <MessageCircle size={24} />
       </button>
+
+      {/* Chat Dialog Overlay */}
+      {showChat && <Chat user={user} onClose={() => setShowChat(false)} />}
 
       {/* Receipt Modal */}
       {selectedPayment && (
