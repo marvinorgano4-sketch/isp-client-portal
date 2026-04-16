@@ -49,7 +49,7 @@ export default function Chat({ user, onClose }) {
   const sendMessage = async () => {
     if (!newMsg.trim() || !conv || sending) return
     const msgText = newMsg.trim()
-    setNewMsg('')
+    setNewMsg('') // Clear input immediately
     setSending(true)
 
     // Optimistic UI — show message immediately as "sending"
@@ -65,17 +65,20 @@ export default function Chat({ user, onClose }) {
     setPendingMsgs(prev => [...prev, tempMsg])
     setTimeout(scrollToBottom, 50)
 
-    await supabase.from('chat_messages').insert([{
-      conversation_id: conv.id,
-      sender_role: 'client',
-      sender_name: user.name,
-      message: msgText,
-    }])
-    await supabase.from('chat_conversations').update({
-      updated_at: new Date().toISOString(),
-      status: 'open',
-      unread_admin: (conv.unread_admin || 0) + 1,
-    }).eq('id', conv.id)
+    // Parallel execution — don't wait for conversation update
+    Promise.all([
+      supabase.from('chat_messages').insert([{
+        conversation_id: conv.id,
+        sender_role: 'client',
+        sender_name: user.name,
+        message: msgText,
+      }]),
+      supabase.from('chat_conversations').update({
+        updated_at: new Date().toISOString(),
+        status: 'open',
+        unread_admin: (conv.unread_admin || 0) + 1,
+      }).eq('id', conv.id),
+    ])
 
     setSending(false)
     inputRef.current?.focus()
