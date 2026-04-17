@@ -29,6 +29,11 @@ export async function subscribeToPush(clientId) {
       return false
     }
 
+    // Unsubscribe from any existing subscription first
+    const existing = await reg.pushManager.getSubscription()
+    if (existing) await existing.unsubscribe()
+
+    // Fresh subscribe with current VAPID key
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),

@@ -20,8 +20,10 @@ export default function App() {
     if (!user) return
     isSubscribed().then(subscribed => {
       if (!subscribed && 'Notification' in window && Notification.permission === 'default') {
-        // Show prompt after 3 seconds
         setTimeout(() => setShowPushPrompt(true), 3000)
+      } else if (!subscribed && 'Notification' in window && Notification.permission === 'granted') {
+        // Permission already granted but no subscription — re-subscribe silently
+        subscribeToPush(user.clientId)
       }
     })
   }, [user])
