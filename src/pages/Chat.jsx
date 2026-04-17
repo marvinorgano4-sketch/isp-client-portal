@@ -33,17 +33,35 @@ export default function Chat({ user, onClose }) {
   useEffect(() => {
     if (!conv?.id) return
     if (channelRef.current) supabase.removeChannel(channelRef.current)
+
     const channel = supabase.channel(`cp-chat-${conv.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conv.id}` },
         (payload) => {
           setMessages(prev => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new])
-          // Remove from pending once confirmed
-          setPendingMsgs(prev => prev.filter(p => p.message !== payload.new.message))
+          setPendingMsgs([])
           setTimeout(scrollToBottom, 100)
         })
       .subscribe()
     channelRef.current = channel
-    return () => supabase.removeChannel(channel)
+
+    // Polling fallback every 3s — ensures messages always appear even if realtime fails
+    const poll = setInterval(async () => {
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('conversation_id', conv.id)
+        .order('created_at')
+      if (data) {
+        setMessages(data)
+        setPendingMsgs([])
+        setTimeout(scrollToBottom, 50)
+      }
+    }, 3000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(poll)
+    }
   }, [conv?.id])
 
   const sendMessage = async () => {
@@ -65,8 +83,8 @@ export default function Chat({ user, onClose }) {
     setPendingMsgs(prev => [...prev, tempMsg])
     setTimeout(scrollToBottom, 50)
 
-    // Parallel execution — don't wait for conversation update
-    Promise.all([
+    // Parallel execution — don't block UI but wait for completion
+    await Promise.all([
       supabase.from('chat_messages').insert([{
         conversation_id: conv.id,
         sender_role: 'client',
