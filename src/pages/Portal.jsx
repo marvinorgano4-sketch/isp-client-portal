@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { format, differenceInDays } from 'date-fns'
 import { useReactToPrint } from 'react-to-print'
 import Receipt from '../components/Receipt'
+import PaymentModal from '../components/PaymentModal'
 import Chat from './Chat'
 
 const TYPE_STYLES = {
@@ -21,9 +22,16 @@ export default function Portal({ user, onLogout }) {
   const [loading, setLoading] = useState(true)
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [showChat, setShowChat] = useState(false)
+  const [payingInvoice, setPayingInvoice] = useState(null)
   const [tab, setTab] = useState('overview') // overview | invoices | payments
+  const [isStandalone, setIsStandalone] = useState(false)
   const bizName = import.meta.env.VITE_BUSINESS_NAME || 'ISP Billing'
   const receiptRef = useRef()
+
+  // Check if app is installed
+  useEffect(() => {
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches)
+  }, [])
 
   const handlePrint = useReactToPrint({
     content: () => receiptRef.current,
@@ -82,9 +90,9 @@ export default function Portal({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-slate-950 pb-20">
-      {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Header with Safe Area */}
+      <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10 safe-top">
+        <div className="max-w-2xl mx-auto px-4 pt-safe py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
               <Wifi size={18} className="text-white" />
@@ -121,7 +129,7 @@ export default function Portal({ user, onLogout }) {
           <>
             {/* Disconnected Alert */}
             {client?.status === 'disconnected' && (
-              <div className="card p-4 border-red-500/50 bg-red-500/10">
+              <div className="card p-4 border-red-500/50 bg-red-500/10 animate-slide-up">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Wifi size={20} className="text-red-400" />
@@ -136,8 +144,9 @@ export default function Portal({ user, onLogout }) {
             {/* Announcements */}
             {announcements.length > 0 && (
               <div className="space-y-2">
-                {announcements.map(a => (
-                  <div key={a.id} className={`p-4 rounded-xl border ${TYPE_STYLES[a.type] || TYPE_STYLES.info}`}>
+                {announcements.map((a, idx) => (
+                  <div key={a.id} className={`p-4 rounded-xl border ${TYPE_STYLES[a.type] || TYPE_STYLES.info} animate-fade-in`}
+                    style={{ animationDelay: `${idx * 0.1}s` }}>
                     <div className="flex items-center gap-2 mb-1">
                       {a.is_pinned && <Pin size={12} />}
                       <span className="text-xs font-bold uppercase">{a.type}</span>
@@ -150,9 +159,34 @@ export default function Portal({ user, onLogout }) {
               </div>
             )}
 
+            {/* Install App Tip (only show if not installed) */}
+            {!isStandalone && (
+              <div className="card p-4 bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-blue-500/30 animate-scale-in animate-delay-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center flex-shrink-0 text-xl">
+                    📱
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-semibold text-sm mb-1">Install App for Better Experience</p>
+                    <p className="text-slate-400 text-xs mb-2">
+                      Get faster access and work offline by installing this app on your device.
+                    </p>
+                    <details className="text-slate-400 text-xs">
+                      <summary className="cursor-pointer text-blue-400 hover:text-blue-300">How to install</summary>
+                      <ol className="mt-2 space-y-1 ml-4 list-decimal">
+                        <li>Tap the menu (⋮) in your browser</li>
+                        <li>Select "Install app" or "Add to Home Screen"</li>
+                        <li>Confirm installation</li>
+                      </ol>
+                    </details>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Overdue Alert */}
             {overdueInvoices.length > 0 && (
-              <div className="card p-4 border-red-500/30 bg-red-500/5">
+              <div className="card p-4 border-red-500/30 bg-red-500/5 animate-slide-in-left animate-delay-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Bell size={16} className="text-red-400" />
                   <p className="text-red-400 font-semibold text-sm">Overdue Balance</p>
@@ -163,7 +197,7 @@ export default function Portal({ user, onLogout }) {
             )}
 
             {/* Plan */}
-            <div className="card p-5">
+            <div className="card p-5 hover-scale animate-fade-in animate-delay-200">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-white font-semibold">My Plan</h2>
                 <span className={client?.status === 'active' ? 'badge-active' : 'badge-disconnected'}>{client?.status}</span>
@@ -183,7 +217,7 @@ export default function Portal({ user, onLogout }) {
 
             {/* Balance Summary */}
             {pendingTotal > 0 && (
-              <div className="card p-5">
+              <div className="card p-5 hover-scale animate-slide-in-right animate-delay-300">
                 <p className="text-slate-400 text-sm mb-1">Outstanding Balance</p>
                 <p className="text-white font-bold text-3xl">{fmt(pendingTotal)}</p>
                 <p className="text-slate-500 text-xs mt-1">Please pay on or before due date</p>
@@ -192,7 +226,7 @@ export default function Portal({ user, onLogout }) {
 
             {/* Recent Invoice */}
             {invoices.length > 0 && (
-              <div className="card p-5">
+              <div className="card p-5 hover-scale animate-fade-in animate-delay-400">
                 <h3 className="text-white font-semibold mb-3">Latest Invoice</h3>
                 {(() => {
                   const inv = invoices[0]
@@ -202,9 +236,17 @@ export default function Portal({ user, onLogout }) {
                         <p className="text-white font-mono text-sm">{inv.invoice_number}</p>
                         <p className="text-slate-500 text-xs">Due: {format(new Date(inv.due_date), 'MMM d, yyyy')}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-2">
                         <p className="text-white font-bold">{fmt(inv.amount)}</p>
                         {statusBadge(inv.status)}
+                        {(inv.status === 'pending' || inv.status === 'overdue') && (
+                          <button
+                            onClick={() => setPayingInvoice(inv)}
+                            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95"
+                          >
+                            <CreditCard size={12} /> Pay Now
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
@@ -216,13 +258,14 @@ export default function Portal({ user, onLogout }) {
 
         {/* INVOICES TAB */}
         {tab === 'invoices' && (
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden animate-fade-in">
             {invoices.length === 0 ? (
               <p className="text-slate-500 text-sm text-center py-12">No invoices yet</p>
             ) : (
               <div className="divide-y divide-slate-800/50">
-                {invoices.map(inv => (
-                  <div key={inv.id} className="px-5 py-4 flex items-center justify-between">
+                {invoices.map((inv, idx) => (
+                  <div key={inv.id} className="px-5 py-4 flex items-center justify-between hover-scale animate-slide-in-left"
+                    style={{ animationDelay: `${idx * 0.05}s` }}>
                     <div>
                       <p className="text-white text-sm font-mono font-medium">{inv.invoice_number}</p>
                       <p className="text-slate-500 text-xs">Due: {format(new Date(inv.due_date), 'MMM d, yyyy')}</p>
@@ -232,9 +275,17 @@ export default function Portal({ user, onLogout }) {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-1.5">
                       <p className="text-white font-semibold">{fmt(inv.amount)}</p>
                       {statusBadge(inv.status)}
+                      {(inv.status === 'pending' || inv.status === 'overdue') && (
+                        <button
+                          onClick={() => setPayingInvoice(inv)}
+                          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95"
+                        >
+                          <CreditCard size={12} /> Pay
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -245,13 +296,14 @@ export default function Portal({ user, onLogout }) {
 
         {/* PAYMENTS TAB */}
         {tab === 'payments' && (
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden animate-fade-in">
             {payments.length === 0 ? (
               <p className="text-slate-500 text-sm text-center py-12">No payments yet</p>
             ) : (
               <div className="divide-y divide-slate-800/50">
-                {payments.map(p => (
-                  <div key={p.id} className="px-5 py-4 flex items-center justify-between">
+                {payments.map((p, idx) => (
+                  <div key={p.id} className="px-5 py-4 flex items-center justify-between hover-scale animate-slide-in-right"
+                    style={{ animationDelay: `${idx * 0.05}s` }}>
                     <div>
                       <p className="text-white text-sm font-semibold">{fmt(p.amount_paid)}</p>
                       <p className="text-slate-500 text-xs">{format(new Date(p.paid_at), 'MMM d, yyyy hh:mm a')}</p>
@@ -274,7 +326,7 @@ export default function Portal({ user, onLogout }) {
       {/* Floating Chat Button */}
       <button
         onClick={() => setShowChat(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-600/40 flex items-center justify-center transition-all z-40"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-600/40 flex items-center justify-center transition-all z-40 hover:scale-110 active:scale-95 animate-scale-in animate-delay-500"
       >
         <MessageCircle size={24} />
       </button>
@@ -282,17 +334,32 @@ export default function Portal({ user, onLogout }) {
       {/* Chat Dialog Overlay */}
       {showChat && <Chat user={user} onClose={() => setShowChat(false)} />}
 
+      {/* Payment Modal */}
+      {payingInvoice && (
+        <PaymentModal
+          invoice={payingInvoice}
+          client={client}
+          onClose={() => setPayingInvoice(null)}
+          onSuccess={() => {
+            // Refresh invoices after payment submitted
+            supabase.from('invoices').select('*').eq('client_id', user.clientId)
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data && setInvoices(data))
+          }}
+        />
+      )}
+
       {/* Receipt Modal */}
       {selectedPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70" onClick={() => setSelectedPayment(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm">
+          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm animate-scale-in">
             <div className="bg-white rounded-xl p-2 mb-4 overflow-auto max-h-80">
               <Receipt ref={receiptRef} payment={selectedPayment} settings={{ business_name: bizName }} />
             </div>
             <div className="flex gap-3">
-              <button className="btn-secondary flex-1 justify-center" onClick={() => setSelectedPayment(null)}>Close</button>
-              <button className="btn-primary flex-1 justify-center" onClick={handlePrint}>
+              <button className="btn-secondary flex-1 justify-center hover:scale-105 active:scale-95 transition-transform" onClick={() => setSelectedPayment(null)}>Close</button>
+              <button className="btn-primary flex-1 justify-center hover:scale-105 active:scale-95 transition-transform" onClick={handlePrint}>
                 <Printer size={15} /> Print
               </button>
             </div>

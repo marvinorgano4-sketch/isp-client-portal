@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Icon Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { margin-bottom: 2rem; color: #60a5fa; }
+    .controls {
+      background: #1e293b;
+      padding: 2rem;
+      border-radius: 1rem;
+      margin-bottom: 2rem;
+    }
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #94a3b8;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.75rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      color: white;
+      font-size: 1rem;
+    }
+    input[type="color"] {
+      height: 50px;
+      cursor: pointer;
+    }
+    .preview {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .icon-preview {
+      text-align: center;
+    }
+    canvas {
+      border-radius: 1rem;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      margin-bottom: 1rem;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1d4ed8; }
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .info {
+      background: #1e293b;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      border-left: 4px solid #2563eb;
+      margin-top: 2rem;
+    }
+    .info p { color: #94a3b8; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 Simple Icon Generator</h1>
+    
+    <div class="controls">
+      <div class="control-group">
+        <label>Background Color</label>
+        <input type="color" id="bgColor" value="#2563eb">
+      </div>
+      
+      <div class="control-group">
+        <label>Text Color</label>
+        <input type="color" id="textColor" value="#ffffff">
+      </div>
+      
+      <div class="control-group">
+        <label>Icon Text (2-3 letters recommended)</label>
+        <input type="text" id="iconText" value="ISP" maxlength="4" placeholder="ISP">
+      </div>
+      
+      <div class="control-group">
+        <label>Icon Style</label>
+        <select id="iconStyle">
+          <option value="text">Text Only</option>
+          <option value="wifi">WiFi Symbol</option>
+          <option value="circle">Circle + Text</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="preview">
+      <div class="icon-preview">
+        <canvas id="canvas192" width="192" height="192"></canvas>
+        <p style="color: #94a3b8; font-size: 0.875rem;">192x192</p>
+      </div>
+      <div class="icon-preview">
+        <canvas id="canvas512" width="512" height="512"></canvas>
+        <p style="color: #94a3b8; font-size: 0.875rem;">512x512</p>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button onclick="downloadIcon(192)">Download 192x192</button>
+      <button onclick="downloadIcon(512)">Download 512x512</button>
+      <button onclick="downloadBoth()">Download Both</button>
+    </div>
+
+    <div class="info">
+      <p><strong>Instructions:</strong></p>
+      <p>1. Customize your icon using the controls above</p>
+      <p>2. Click "Download Both" to get both icon sizes</p>
+      <p>3. Save them as <code>icon-192.png</code> and <code>icon-512.png</code></p>
+      <p>4. Copy both files to your <code>isp-client-portal/public/</code> folder</p>
+      <p>5. Deploy and test!</p>
+    </div>
+  </div>
+
+  <script>
+    const canvas192 = document.getElementById('canvas192')
+    const canvas512 = document.getElementById('canvas512')
+    const ctx192 = canvas192.getContext('2d')
+    const ctx512 = canvas512.getContext('2d')
+
+    function drawIcon(ctx, size) {
+      const bgColor = document.getElementById('bgColor').value
+      const textColor = document.getElementById('textColor').value
+      const text = document.getElementById('iconText').value.toUpperCase()
+      const style = document.getElementById('iconStyle').value
+
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size)
+
+      // Background
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, size, size)
+
+      // Draw based on style
+      if (style === 'text') {
+        // Text only
+        ctx.fillStyle = textColor
+        ctx.font = `bold ${size * 0.4}px Arial`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(text, size / 2, size / 2)
+      } else if (style === 'wifi') {
+        // WiFi symbol
+        ctx.strokeStyle = textColor
+        ctx.lineWidth = size * 0.08
+        ctx.lineCap = 'round'
+
+        const centerX = size / 2
+        const centerY = size * 0.6
+
+        // Draw WiFi arcs
+        for (let i = 1; i <= 3; i++) {
+          ctx.beginPath()
+          ctx.arc(centerX, centerY, size * 0.15 * i, -Math.PI * 0.7, -Math.PI * 0.3)
+          ctx.stroke()
+        }
+
+        // Draw dot
+        ctx.beginPath()
+        ctx.arc(centerX, centerY, size * 0.05, 0, Math.PI * 2)
+        ctx.fillStyle = textColor
+        ctx.fill()
+      } else if (style === 'circle') {
+        // Circle + Text
+        ctx.beginPath()
+        ctx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2)
+        ctx.strokeStyle = textColor
+        ctx.lineWidth = size * 0.05
+        ctx.stroke()
+
+        ctx.fillStyle = textColor
+        ctx.font = `bold ${size * 0.3}px Arial`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(text, size / 2, size / 2)
+      }
+    }
+
+    function updatePreviews() {
+      drawIcon(ctx192, 192)
+      drawIcon(ctx512, 512)
+    }
+
+    function downloadIcon(size) {
+      const canvas = size === 192 ? canvas192 : canvas512
+      const link = document.createElement('a')
+      link.download = `icon-${size}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+
+    function downloadBoth() {
+      downloadIcon(192)
+      setTimeout(() => downloadIcon(512), 100)
+    }
+
+    // Update on input change
+    document.getElementById('bgColor').addEventListener('input', updatePreviews)
+    document.getElementById('textColor').addEventListener('input', updatePreviews)
+    document.getElementById('iconText').addEventListener('input', updatePreviews)
+    document.getElementById('iconStyle').addEventListener('change', updatePreviews)
+
+    // Initial draw
+    updatePreviews()
+  </script>
+</body>
+</html>
