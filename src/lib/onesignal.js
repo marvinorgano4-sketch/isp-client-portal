@@ -1,31 +1,46 @@
-// OneSignal Web Push Integration
-// Docs: https://documentation.onesignal.com/docs/web-push-quickstart
-
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID
 
-export function initOneSignal() {
-  if (!ONESIGNAL_APP_ID) {
-    console.warn('OneSignal App ID not configured')
-    return
-  }
+let initialized = false
+
+export async function initOneSignal() {
+  if (!ONESIGNAL_APP_ID || initialized) return
   if (typeof window === 'undefined') return
 
-  window.OneSignalDeferred = window.OneSignalDeferred || []
-  window.OneSignalDeferred.push(async (OneSignal) => {
-    await OneSignal.init({
+  // Wait for OneSignal SDK to load
+  await waitForOneSignal()
+
+  try {
+    await window.OneSignal.init({
       appId: ONESIGNAL_APP_ID,
-      notifyButton: { enable: false }, // we use our own UI
+      notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
     })
+    initialized = true
+    console.log('OneSignal initialized')
+  } catch (e) {
+    console.error('OneSignal init failed:', e)
+  }
+}
+
+function waitForOneSignal(timeout = 10000) {
+  return new Promise((resolve) => {
+    if (window.OneSignal) { resolve(); return }
+    const start = Date.now()
+    const check = setInterval(() => {
+      if (window.OneSignal) { clearInterval(check); resolve() }
+      if (Date.now() - start > timeout) { clearInterval(check); resolve() }
+    }, 100)
   })
 }
 
 export async function subscribeOneSignal(clientId) {
+  await waitForOneSignal()
   if (!window.OneSignal) return false
   try {
     await window.OneSignal.Notifications.requestPermission()
-    // Tag the user with their client ID so we can target them
-    await window.OneSignal.User.addTag('client_id', clientId)
+    if (clientId) {
+      await window.OneSignal.User.addTag('client_id', clientId)
+    }
     return true
   } catch (e) {
     console.error('OneSignal subscribe failed:', e)
@@ -34,15 +49,9 @@ export async function subscribeOneSignal(clientId) {
 }
 
 export async function isOneSignalSubscribed() {
+  await waitForOneSignal()
   if (!window.OneSignal) return false
   try {
-    return await window.OneSignal.Notifications.permission
+    return window.OneSignal.Notifications.permission === true
   } catch { return false }
-}
-
-export async function getOneSignalPlayerId() {
-  if (!window.OneSignal) return null
-  try {
-    return await window.OneSignal.User.PushSubscription.id
-  } catch { return null }
 }
