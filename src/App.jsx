@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { registerSW, subscribeToPush, isSubscribed } from './lib/push'
+import { initOneSignal, subscribeOneSignal, isOneSignalSubscribed } from './lib/onesignal'
 import Login from './pages/Login'
 import Portal from './pages/Portal'
 
@@ -10,22 +10,18 @@ export default function App() {
   })
   const [showPushPrompt, setShowPushPrompt] = useState(false)
 
-  // Register service worker on mount
+  // Init OneSignal on mount
   useEffect(() => {
-    registerSW()
+    initOneSignal()
   }, [])
 
-  // After login, check if push is already subscribed
+  // After login, check if subscribed
   useEffect(() => {
     if (!user) return
-    isSubscribed().then(subscribed => {
-      if (!subscribed && 'Notification' in window && Notification.permission === 'default') {
-        setTimeout(() => setShowPushPrompt(true), 3000)
-      } else if (!subscribed && 'Notification' in window && Notification.permission === 'granted') {
-        // Permission already granted but no subscription — re-subscribe silently
-        subscribeToPush(user.clientId)
-      }
-    })
+    setTimeout(async () => {
+      const subscribed = await isOneSignalSubscribed()
+      if (!subscribed) setShowPushPrompt(true)
+    }, 3000)
   }, [user])
 
   useEffect(() => {
@@ -50,8 +46,8 @@ export default function App() {
   const handleEnableNotifications = async () => {
     setShowPushPrompt(false)
     if (!user) return
-    const ok = await subscribeToPush(user.clientId)
-    if (ok) alert('✓ Notifications enabled! You will receive payment reminders.')
+    const ok = await subscribeOneSignal(user.clientId)
+    if (ok) alert('✓ Notifications enabled!')
   }
 
   if (!user) return <Login onLogin={login} />
@@ -71,7 +67,7 @@ export default function App() {
             <div className="flex-1">
               <p className="text-white font-semibold text-sm">Enable Notifications</p>
               <p className="text-slate-400 text-xs mt-0.5">
-                Get payment reminders and important alerts directly on your phone.
+                Get payment reminders and alerts directly on your phone.
               </p>
               <div className="flex gap-2 mt-3">
                 <button
